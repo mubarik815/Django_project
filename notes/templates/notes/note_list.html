@@ -1,0 +1,610 @@
+{% extends 'notes/base.html' %}
+
+{% block content %}
+
+<style>
+    .current-day {
+        background: #24566a;
+        color: white;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .current-day h2 {
+        margin: 0 0 5px;
+    }
+
+    .current-day p {
+        margin: 5px 0;
+    }
+
+    .table-toolbar {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+
+    .add-button,
+    .print-button,
+    .excel-button {
+        display: inline-block;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 6px;
+        color: white;
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .add-button {
+        background: #24566a;
+    }
+
+    .add-button:hover {
+        background: #183f4e;
+    }
+
+    .print-button {
+        background: #34495e;
+    }
+
+    .print-button:hover {
+        background: #243342;
+    }
+
+    .excel-button {
+        background: #198754;
+    }
+
+    .excel-button:hover {
+        background: #146c43;
+    }
+
+    .table-search {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        max-width: 100%;
+        box-sizing: border-box;
+        flex: 1;
+        min-width: 180px;
+    }
+
+    .table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+    }
+
+    .notes-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 950px;
+        background: white;
+    }
+
+    .notes-table th,
+    .notes-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e5e5e5;
+        vertical-align: top;
+    }
+
+    .notes-table th {
+        background: #24566a;
+        color: white;
+        white-space: nowrap;
+    }
+
+    .notes-table tbody tr:nth-child(even) {
+        background: #f5f8fa;
+    }
+
+    .notes-table tbody tr:hover {
+        background: #eaf2f5;
+    }
+
+    .note-content {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        min-width: 150px;
+        max-width: 350px;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 9px;
+        border-radius: 12px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .status-done {
+        background: #d1e7dd;
+        color: #0f5132;
+    }
+
+    .status-pending {
+        background: #fff3cd;
+        color: #664d03;
+    }
+
+    .action-link {
+        display: inline-block;
+        margin: 2px;
+        text-decoration: none;
+    }
+
+    .delete-link {
+        color: #dc3545;
+    }
+
+    .empty-row {
+        text-align: center !important;
+        padding: 25px !important;
+        color: #666;
+    }
+
+    #refresh-status {
+        margin-top: 12px;
+        font-size: 12px;
+        color: #666;
+    }
+
+    @media (max-width: 600px) {
+        .table-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .table-search {
+            width: 100%;
+        }
+
+        .add-button,
+        .print-button,
+        .excel-button {
+            text-align: center;
+        }
+    }
+
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+
+        .table-wrapper,
+        .table-wrapper * {
+            visibility: visible;
+        }
+
+        .table-wrapper {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            overflow: visible;
+            border: none;
+        }
+
+        .notes-table {
+            width: 100%;
+            min-width: 0;
+            font-size: 9px;
+            border-collapse: collapse;
+        }
+
+        .notes-table th,
+        .notes-table td {
+            padding: 5px;
+            border: 1px solid #777;
+            color: black;
+            overflow-wrap: anywhere;
+        }
+
+        .notes-table th {
+            background: #eee !important;
+            color: black !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .notes-table tbody tr:nth-child(even) {
+            background: white !important;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+
+        @page {
+            size: landscape;
+            margin: 10mm;
+        }
+    }
+</style>
+
+<!-- Current date and time -->
+
+<div class="current-day">
+    <h2 id="current-weekday">{% now "l" %}</h2>
+    <p id="current-date">{% now "F j, Y" %}</p>
+    <p id="current-time"></p>
+</div>
+
+<!-- Toolbar: Add, Print, Excel Export, Search -->
+
+<div class="table-toolbar no-print">
+
+```
+<a class="add-button" href="{% url 'note_create' %}">
+    + Add Note
+</a>
+
+<button type="button" class="print-button" onclick="printNotes()">
+    🖨️ Print
+</button>
+
+<button type="button" class="excel-button" onclick="exportToExcel()">
+    📊 Export to Excel
+</button>
+
+<input
+    type="search"
+    id="table-search"
+    class="table-search"
+    placeholder="Search notes..."
+    aria-label="Search notes"
+>
+```
+
+</div>
+
+<!-- Notes table -->
+
+<div class="table-wrapper">
+    <table class="notes-table" id="notes-table">
+
+```
+    <thead>
+        <tr>
+            <th>No.</th>
+            <th>Title</th>
+            <th>Content</th>
+            <th>Created By</th>
+            <th>Date &amp; Time</th>
+            <th>Weekday</th>
+            <th>Status</th>
+            <th class="no-print">Actions</th>
+        </tr>
+    </thead>
+
+    <tbody id="notes-table-body">
+        {% for note in notes %}
+        <tr data-note-id="{{ note.id }}">
+            <td>{{ forloop.counter }}</td>
+            <td>{{ note.title }}</td>
+            <td class="note-content">{{ note.content }}</td>
+            <td>{{ note.created_by.username|default:"Unknown" }}</td>
+            <td>{{ note.created_at|date:"M d, Y H:i" }}</td>
+            <td>{{ note.created_day|default:"—" }}</td>
+
+            <td>
+                {% if note.is_done %}
+                    <span class="status-badge status-done">Completed</span>
+                {% else %}
+                    <span class="status-badge status-pending">Pending</span>
+                {% endif %}
+            </td>
+
+            <td class="no-print">
+                <a class="action-link"
+                   href="{% url 'note_update' note.pk %}">Edit</a>
+                |
+                <a class="action-link delete-link"
+                   href="{% url 'note_delete' note.pk %}">Delete</a>
+            </td>
+        </tr>
+
+        {% empty %}
+        <tr>
+            <td colspan="8" class="empty-row">No notes yet.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+
+</table>
+```
+
+</div>
+
+<p id="refresh-status" class="no-print" aria-live="polite">
+    ● Automatic updates enabled. Checking every 3 seconds.
+</p>
+
+<!-- Excel library -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+(function () {
+    "use strict";
+
+    const tableBody = document.getElementById("notes-table-body");
+    const searchInput = document.getElementById("table-search");
+    const refreshStatus = document.getElementById("refresh-status");
+    const notesDataUrl = "{% url 'notes_data' %}";
+
+    let requestInProgress = false;
+    let submittingForm = false;
+
+    // Live date and clock
+    function updateClock() {
+        const now = new Date();
+
+        document.getElementById("current-weekday").textContent =
+            now.toLocaleDateString(undefined, { weekday: "long" });
+
+        document.getElementById("current-date").textContent =
+            now.toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "long",
+                day: "numeric"
+            });
+
+        document.getElementById("current-time").textContent =
+            now.toLocaleTimeString();
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // Preserve search after automatic updates
+    function applySearch() {
+        const query = searchInput.value.trim().toLowerCase();
+
+        Array.from(tableBody.querySelectorAll("tr[data-note-id]"))
+            .forEach(function (row) {
+                row.hidden = !row.textContent.toLowerCase().includes(query);
+            });
+    }
+
+    searchInput.addEventListener("input", applySearch);
+
+    document.addEventListener("submit", function () {
+        submittingForm = true;
+    }, true);
+
+    // Safely add text to cells
+    function addCell(row, text, className) {
+        const cell = document.createElement("td");
+
+        cell.textContent =
+            text === null || text === undefined || text === ""
+                ? "—"
+                : String(text);
+
+        if (className) {
+            cell.className = className;
+        }
+
+        row.appendChild(cell);
+        return cell;
+    }
+
+    // Build a note row
+    function createRow(note, index) {
+        const row = document.createElement("tr");
+        row.dataset.noteId = note.id;
+
+        addCell(row, index + 1);
+        addCell(row, note.title);
+
+        addCell(row, note.content || "", "note-content");
+        addCell(row, note.created_by || "Unknown");
+        addCell(row, note.created_at || "");
+        addCell(row, note.created_day || "—");
+
+        const statusCell = document.createElement("td");
+        const badge = document.createElement("span");
+
+        badge.className = note.is_done
+            ? "status-badge status-done"
+            : "status-badge status-pending";
+
+        badge.textContent = note.is_done ? "Completed" : "Pending";
+
+        statusCell.appendChild(badge);
+        row.appendChild(statusCell);
+
+        const actionsCell = document.createElement("td");
+        actionsCell.className = "no-print";
+
+        if (note.update_url) {
+            const editLink = document.createElement("a");
+
+            editLink.href = note.update_url;
+            editLink.className = "action-link";
+            editLink.textContent = "Edit";
+
+            actionsCell.appendChild(editLink);
+        }
+
+        if (note.delete_url) {
+            if (actionsCell.childNodes.length > 0) {
+                actionsCell.appendChild(document.createTextNode(" | "));
+            }
+
+            const deleteLink = document.createElement("a");
+
+            deleteLink.href = note.delete_url;
+            deleteLink.className = "action-link delete-link";
+            deleteLink.textContent = "Delete";
+
+            actionsCell.appendChild(deleteLink);
+        }
+
+        row.appendChild(actionsCell);
+
+        return row;
+    }
+
+    // Render table rows
+    function renderNotes(notes) {
+        const fragment = document.createDocumentFragment();
+
+        if (notes.length === 0) {
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+
+            cell.colSpan = 8;
+            cell.className = "empty-row";
+            cell.textContent = "No notes yet.";
+
+            row.appendChild(cell);
+            fragment.appendChild(row);
+        } else {
+            notes.forEach(function (note, index) {
+                fragment.appendChild(createRow(note, index));
+            });
+        }
+
+        tableBody.replaceChildren(fragment);
+        applySearch();
+    }
+
+    // Refresh data from Django
+    async function refreshNotes() {
+        if (
+            requestInProgress ||
+            submittingForm ||
+            document.hidden
+        ) {
+            return;
+        }
+
+        requestInProgress = true;
+
+        try {
+            const response = await fetch(notesDataUrl, {
+                method: "GET",
+                credentials: "same-origin",
+                cache: "no-store",
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error("HTTP " + response.status);
+            }
+
+            const data = await response.json();
+
+            if (!Array.isArray(data.notes)) {
+                throw new Error("Invalid notes response.");
+            }
+
+            renderNotes(data.notes);
+
+            refreshStatus.textContent =
+                "● Connected. Last updated at " +
+                new Date().toLocaleTimeString() +
+                ". Checking every 3 seconds.";
+
+        } catch (error) {
+            console.error("Unable to update notes:", error);
+
+            refreshStatus.textContent =
+                "● Could not update notes. Retrying automatically.";
+
+        } finally {
+            requestInProgress = false;
+        }
+    }
+
+    // Print the visible notes
+    window.printNotes = function () {
+        window.print();
+    };
+
+    // Export the currently displayed (search-filtered) rows
+    window.exportToExcel = function () {
+        if (typeof XLSX === "undefined") {
+            alert(
+                "Excel export library could not load. Check your internet connection and reload the page."
+            );
+            return;
+        }
+
+        const visibleRows = Array.from(
+            tableBody.querySelectorAll("tr[data-note-id]")
+        ).filter(function (row) {
+            return !row.hidden;
+        });
+
+        const exportData = [];
+
+        visibleRows.forEach(function (row, index) {
+            const cells = row.cells;
+
+            exportData.push({
+                "No.": index + 1,
+                "Title": cells[1]?.textContent.trim() || "",
+                "Content": cells[2]?.textContent.trim() || "",
+                "Created By": cells[3]?.textContent.trim() || "",
+                "Date & Time": cells[4]?.textContent.trim() || "",
+                "Weekday": cells[5]?.textContent.trim() || "",
+                "Status": cells[6]?.textContent.trim() || ""
+            });
+        });
+
+        if (exportData.length === 0) {
+            alert("There are no notes to export.");
+            return;
+        }
+
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+
+        XLSX.utils.book_append_sheet(
+            workbook,
+            worksheet,
+            "JADU Notes"
+        );
+
+        // Set practical column widths
+        worksheet["!cols"] = [
+            { wch: 6 },
+            { wch: 25 },
+            { wch: 45 },
+            { wch: 20 },
+            { wch: 22 },
+            { wch: 15 },
+            { wch: 15 }
+        ];
+
+        const date = new Date().toISOString().slice(0, 10);
+
+        XLSX.writeFile(
+            workbook,
+            "JADU_Notes_" + date + ".xlsx"
+        );
+    };
+
+    // Initial load and refresh every three seconds
+    refreshNotes();
+    setInterval(refreshNotes, 3000);
+
+})();
+</script>
+
+{% endblock %}

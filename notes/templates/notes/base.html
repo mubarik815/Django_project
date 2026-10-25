@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Django Notes</title>
+    <style>
+        body { font-family: sans-serif; max-width: 700px; margin: 40px auto; }
+        .note { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 6px; }
+        .done { text-decoration: line-through; color: gray; }
+    </style>
+</head>
+<body>
+    <h1><a href="{% url 'note_list' %}">Django Notes</a></h1>
+    {% block content %}{% endblock %}
+</body>
+</html>
