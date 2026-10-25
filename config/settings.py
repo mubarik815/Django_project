@@ -7,9 +7,9 @@ SECRET_KEY = 'django-insecure-training-key-change-later'
 DEBUG = True
 
 ALLOWED_HOSTS = [
-'127.0.0.1',
-'localhost',
-'10.6.220.192',
+"django-project-b47b.onrender.com",
+"localhost",
+"127.0.0.1",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
