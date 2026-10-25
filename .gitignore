@@ -7,9 +7,7 @@ venv/
 .venv/
 env/
 
-# Django database
-db.sqlite3
-db.sqlite3-journal
+
 
 # Environment variables and secrets
 .env
