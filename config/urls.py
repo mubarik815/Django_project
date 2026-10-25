@@ -7,7 +7,13 @@ urlpatterns = [
 path("admin/", admin.site.urls),
 
 # Custom login page for JADU Notes
-
+path(
+    "accounts/login/",
+    auth_views.LoginView.as_view(
+        template_name="registration/login.html"
+    ),
+    name="login",
+),
 # JADU Notes logout
 path(
     "accounts/logout/",
@@ -20,3 +26,4 @@ path("", include("notes.urls")),
 
 
 ]
+
